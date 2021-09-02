@@ -1,0 +1,27 @@
+From 564029959dd7e497dc0c534ae3feacc3fa641e29 Mon Sep 17 00:00:00 2001
+From: jietengxie <jietengxie@bestechnic.com>
+Date: Mon, 17 Aug 2020 14:00:39 +0800
+Subject: [PATCH 2/3] sync audio_prompt_sbc.cpp
+
+---
+ services/bt_app/audio_prompt_sbc.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/services/bt_app/audio_prompt_sbc.cpp b/services/bt_app/audio_prompt_sbc.cpp
+index 4dd7abee88..7de9e46713 100644
+--- a/services/bt_app/audio_prompt_sbc.cpp
++++ b/services/bt_app/audio_prompt_sbc.cpp
+@@ -818,6 +818,10 @@ static void audio_prompt_processing_handler_func(uint32_t acquiredPcmDataLen, ui
+     uint16_t prompt_chnlsel = PROMPT_CHNLSEl_FROM_ID_VALUE(audio_prompt_env.promptPram);
+ #endif
+ 
++    if(audio_prompt_env.isMixPromptOn ==  false){
++        return;
++    }
++
+     uint32_t pcmDataToGetFromPrompt = acquiredPcmDataLen/(audio_prompt_env.targetChannelCnt*audio_prompt_env.targetBytesCntPerSample/2);
+ 
+     while ((uint32_t)LengthOfCQueue(&(audio_prompt_env.pcmDataQueue)) < pcmDataToGetFromPrompt)
+-- 
+2.11.0.windows.1
+

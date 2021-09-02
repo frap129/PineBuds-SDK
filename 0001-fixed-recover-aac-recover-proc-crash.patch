@@ -1,0 +1,53 @@
+From 4a4d767b3f1088f062f9dc880a2d3afee4419123 Mon Sep 17 00:00:00 2001
+From: jietengxie <jietengxie@bestechnic.com>
+Date: Wed, 2 Sep 2020 19:49:04 +0800
+Subject: [PATCH 1/2] fixed recover aac recover proc crash.
+
+---
+ apps/audioplayers/a2dp_decoder/a2dp_decoder_aac_lc.cpp | 2 +-
+ services/bt_app/app_bt_stream.cpp                      | 2 +-
+ services/ibrt_core/src/app_tws_ibrt_cmd_handler.cpp    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/apps/audioplayers/a2dp_decoder/a2dp_decoder_aac_lc.cpp b/apps/audioplayers/a2dp_decoder/a2dp_decoder_aac_lc.cpp
+index eef84d1cab..0270525045 100644
+--- a/apps/audioplayers/a2dp_decoder/a2dp_decoder_aac_lc.cpp
++++ b/apps/audioplayers/a2dp_decoder/a2dp_decoder_aac_lc.cpp
+@@ -730,7 +730,7 @@ int a2dp_audio_aac_lc_packet_recover_proc(a2dp_audio_aac_decoder_frame_t *aac_de
+     list_t *list = a2dp_audio_context_p->audio_datapath.input_raw_packet_list;
+     int missing_pkt_cnt = 0;
+     missing_pkt_cnt = a2dp_audio_aac_lc_packet_recover_find_missing(aac_decoder_frame);
+-    if (missing_pkt_cnt && a2dp_audio_list_length(list) < aac_mtu_limiter){
++    if (missing_pkt_cnt && (a2dp_audio_list_length(list)+missing_pkt_cnt) < aac_mtu_limiter){
+         for (uint8_t i=0; i<missing_pkt_cnt; i++){
+             a2dp_audio_aac_decoder_frame_t *aac_decoder_frame_p = (a2dp_audio_aac_decoder_frame_t *)a2dp_audio_aac_lc_frame_malloc(aac_decoder_frame->aac_buffer_len);
+             aac_decoder_frame_p->sequenceNumber = UINT16_MAX;
+diff --git a/services/bt_app/app_bt_stream.cpp b/services/bt_app/app_bt_stream.cpp
+index 80c149bf9c..a4748b47b1 100644
+--- a/services/bt_app/app_bt_stream.cpp
++++ b/services/bt_app/app_bt_stream.cpp
+@@ -2961,7 +2961,7 @@ int app_bt_stream_ibrt_audio_master_detect_next_packet_cb(btif_media_header_t *
+             //flush all
+             a2dp_audio_synchronize_dest_packet_mut(0);
+             a2dp_audio_detect_first_packet();
+-            TRACE(0,"cache skip profile_exchanged sync_a2dp_status_onporcess\n");
++            TRACE(3,"cache skip profile_exchanged sync_a2dp_status_onporcess %d %d %d\n",app_ibrt_if_start_ibrt_onporcess(),app_ibrt_sync_a2dp_status_onporcess(),app_ibrt_waiting_cmd_rsp());
+             return 0;
+         }else{
+             if (p_ibrt_ctrl->tws_mode == IBRT_SNIFF_MODE    ||
+diff --git a/services/ibrt_core/src/app_tws_ibrt_cmd_handler.cpp b/services/ibrt_core/src/app_tws_ibrt_cmd_handler.cpp
+index 627686778b..c7c3d5d987 100644
+--- a/services/ibrt_core/src/app_tws_ibrt_cmd_handler.cpp
++++ b/services/ibrt_core/src/app_tws_ibrt_cmd_handler.cpp
+@@ -1663,7 +1663,7 @@ void app_ibrt_send_profiles(void)
+     }
+     else
+     {
+-        TRACE(1,"ibrt_ui_log:[2]wait profile connecting,mobile_constate=0x%x",\
++        TRACE(1,"ibrt_ui_log:[3]wait profile connecting,mobile_constate=0x%x",\
+               p_ibrt_ctrl->mobile_constate);
+         //app_ibrt_delay_profile_send_timer(IBRT_NEW_PROFILE_WAIT_TIMEOUT);
+         //p_ibrt_ctrl->wait_profile = true;
+-- 
+2.11.0.windows.1
+

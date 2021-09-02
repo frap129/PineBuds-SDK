@@ -1,0 +1,72 @@
+From 1d28ddd34dc5a791b559a601bb48b51dd8ed4340 Mon Sep 17 00:00:00 2001
+From: jietengxie <jietengxie@bestechnic.com>
+Date: Tue, 11 Aug 2020 15:55:11 +0800
+Subject: [PATCH] merge app_ibrt_waiting_cmd_rsp
+
+---
+ services/bt_app/app_bt_stream.cpp                   |  3 ++-
+ services/ibrt_core/inc/app_tws_ibrt_cmd_handler.h   |  1 +
+ services/ibrt_core/src/app_tws_ibrt_cmd_handler.cpp | 21 +++++++++++++++++++++
+ 3 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/services/bt_app/app_bt_stream.cpp b/services/bt_app/app_bt_stream.cpp
+index 0f5b0b43eb..3285fb8da9 100644
+--- a/services/bt_app/app_bt_stream.cpp
++++ b/services/bt_app/app_bt_stream.cpp
+@@ -3089,7 +3089,8 @@ int app_bt_stream_ibrt_audio_master_detect_next_packet_cb(btif_media_header_t *
+             app_bt_stream_trigger_start(0);
+ #endif
+         }else if (app_ibrt_if_start_ibrt_onporcess() ||
+-                  app_ibrt_sync_a2dp_status_onporcess()){
++                  app_ibrt_sync_a2dp_status_onporcess()||
++                  app_ibrt_waiting_cmd_rsp()){
+             //flush all
+             a2dp_audio_synchronize_dest_packet_mut(0);
+             a2dp_audio_detect_first_packet();
+diff --git a/services/ibrt_core/inc/app_tws_ibrt_cmd_handler.h b/services/ibrt_core/inc/app_tws_ibrt_cmd_handler.h
+index 9bacfa82bb..07703f14e7 100644
+--- a/services/ibrt_core/inc/app_tws_ibrt_cmd_handler.h
++++ b/services/ibrt_core/inc/app_tws_ibrt_cmd_handler.h
+@@ -161,6 +161,7 @@ void app_ibrt_data_receive_handler(void);
+ void app_ibrt_cmd_rsp_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+ void app_ibrt_send_cmd_without_rsp(uint16_t cmdcode, uint8_t *p_buff, uint16_t length);
+ void app_ibrt_send_cmd_with_rsp(uint16_t cmdcode, uint8_t *p_buff, uint16_t length);
++bool app_ibrt_waiting_cmd_rsp(void);
+ void app_ibrt_profile_data_exchange_handler(uint16_t rsp_seq, uint8_t *p_buff, uint16_t length);
+ void app_ibrt_send_profiles(void);
+ void app_ibrt_send_tws_switch_cmd(uint8_t *p_buff, uint16_t length);
+diff --git a/services/ibrt_core/src/app_tws_ibrt_cmd_handler.cpp b/services/ibrt_core/src/app_tws_ibrt_cmd_handler.cpp
+index d97b5117b7..627686778b 100644
+--- a/services/ibrt_core/src/app_tws_ibrt_cmd_handler.cpp
++++ b/services/ibrt_core/src/app_tws_ibrt_cmd_handler.cpp
+@@ -1048,6 +1048,27 @@ int app_ibrt_clear_cmd_semphore(void)
+ }
+ 
+ /*****************************************************************************
++ Prototype    : app_ibrt_waiting_cmd_rsp
++ Description  : app_ibrt_waiting_cmd_rsp
++ Input        : void
++ Output       : None
++ Return Value :
++ Calls        :
++ Called By    :
++
++ History        :
++ Date         : 2019/3/15
++ Author       : bestechnic
++ Modification : Created function
++
++*****************************************************************************/
++bool app_ibrt_waiting_cmd_rsp(void)
++{
++    return g_ibrt_cmd_waiting_rsp;
++}
++
++
++/*****************************************************************************
+  Prototype    : app_ibrt_send_cmd_rsp
+  Description  : send ibrt cmd response to peer device
+  Input        : uint8_t *p_buff
+-- 
+2.11.0.windows.1
+

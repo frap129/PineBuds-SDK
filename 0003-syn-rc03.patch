@@ -1,0 +1,274 @@
+From 0d22c2cc5452dbf2e0bf07c03dee187ee2af4bbb Mon Sep 17 00:00:00 2001
+From: jietengxie <jietengxie@bestechnic.com>
+Date: Wed, 5 Aug 2020 14:18:08 +0800
+Subject: [PATCH 3/3] syn rco3 2300p:fix HW spi crash for linkloss(bt/ble) fix
+ audio play muti tasks run causes crash
+
+---
+ apps/audioplayers/a2dp_decoder/a2dp_decoder.cpp |  10 +++
+ platform/drivers/bt/best2300p/bt_drv_patch.c    | 113 ++++++++++++++++--------
+ platform/drivers/bt/best2300p/bt_drv_reg_op.cpp |   2 +-
+ platform/drivers/bt/best2300p/bt_drv_rfconfig.c |   2 +-
+ platform/drivers/bt/bt_drv_reg_op.h             |   2 +
+ 5 files changed, 90 insertions(+), 39 deletions(-)
+
+diff --git a/apps/audioplayers/a2dp_decoder/a2dp_decoder.cpp b/apps/audioplayers/a2dp_decoder/a2dp_decoder.cpp
+index 0142fca4ec..2df9903c5a 100644
+--- a/apps/audioplayers/a2dp_decoder/a2dp_decoder.cpp
++++ b/apps/audioplayers/a2dp_decoder/a2dp_decoder.cpp
+@@ -1224,6 +1224,13 @@ int a2dp_audio_store_packet(btif_media_header_t * header, unsigned char *buf, un
+ {
+     int nRet = A2DP_DECODER_NO_ERROR;
+ 
++    if( a2dp_audio_get_status() == A2DP_AUDIO_DECODER_STATUS_NULL)
++    {//if mem deinit , drop data
++        return nRet;
++    }
++    
++    a2dp_audio_status_mutex_lock();
++
+ #if A2DP_DECODER_HISTORY_SEQ_SAVE
+     a2dp_audio_save_history_seq(header, buf, len);
+ #endif
+@@ -1287,6 +1294,9 @@ int a2dp_audio_store_packet(btif_media_header_t * header, unsigned char *buf, un
+     }
+ 
+     a2dp_audio_set_store_packet_status(A2DP_AUDIO_DECODER_STORE_PACKET_STATUS_IDLE);
++
++    a2dp_audio_status_mutex_unlock();
++
+     return 0;
+ }
+ 
+diff --git a/platform/drivers/bt/best2300p/bt_drv_patch.c b/platform/drivers/bt/best2300p/bt_drv_patch.c
+index d56ecb289c..f5d141e8f0 100644
+--- a/platform/drivers/bt/best2300p/bt_drv_patch.c
++++ b/platform/drivers/bt/best2300p/bt_drv_patch.c
+@@ -111,15 +111,30 @@ typedef struct
+ 
+ const uint32_t bes2300p_patch0_ibrt_ins_data_t3[] =
+ {
+-    0xd0082e02,
+-    0xd1092e10,
+-    0x681b4b05,
+-    0xbf142b00,
+-    0x20022004,
+-    0x2002e000,
+-    0xf860f635,
+-    0xb904f635,
+-    0xc0007384,/*6c04*/
++    0x400fe92d,   /*0xc0007758L*/
++    0xf0004630,   /*0xc000775cL*/
++    0xe8bdf805,   /*0xc0007760L*/
++    0xf634400f,   /*0xc0007764L*/
++    0x0000bb51,   /*0xc0007768L*/
++    0x4604b510,   /*0xc000776cL*/
++    0x47984b0c,   /*0xc0007770L*/
++    0x60184b0c,   /*0xc0007774L*/
++    0x781b3304,   /*0xc0007778L*/
++    0x2b03b2db,   /*0xc000777cL*/
++    0x2c02d005,   /*0xc0007780L*/
++    0x2c10d009,   /*0xc0007784L*/
++    0x2004d10a,   /*0xc0007788L*/
++    0x4b07e006,   /*0xc000778cL*/
++    0xb2db781b,   /*0xc0007790L*/
++    0x70134a06,   /*0xc0007794L*/
++    0x2002e7f3,   /*0xc0007798L*/
++    0x47984b05,   /*0xc000779cL*/
++    0xbf00bd10,   /*0xc00077a0L*/
++    0xa0026ded,   /*0xc00077a4L*/
++    0xc000653c,   /*0xc00077a8L*/
++    0xc00064da,   /*0xc00077acL*/
++    0xc0006541,   /*0xc00077b0L*/
++    0xa003bcc1,   /*0xc00077b4L*/
+ };
+ 
+ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch0 =
+@@ -127,9 +142,9 @@ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch0 =
+     0,
+     BTDRV_PATCH_ACT,
+     sizeof(bes2300p_patch0_ibrt_ins_data_t3),
+-    0x0003bdf8,
+-    0xbef4f1ca,
+-    0xc0006be4,
++    0x0003bdc0,
++    0xbccaf1cb,
++    0xc0007758,
+     (uint8_t *)bes2300p_patch0_ibrt_ins_data_t3
+ };//ibrt sco auto accept (slave)
+ 
+@@ -708,10 +723,10 @@ const uint32_t bes2300p_patch2a_ibrt_ins_data_t3[] =
+ 
+ const uint32_t bes2300p_patch23_ibrt_ins_data_t3[] =
+ {
+-    0xf9c6f632,
++    0xf9c6f632,/*7744*/
+     0x02194603,
+     0x417ff401,
+-    0xbeeff632,
++    0xbeeff632,/*7750*/
+ };
+ 
+ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch23 =
+@@ -759,8 +774,11 @@ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch25 =
+ #if 1
+ const uint32_t bes2300p_patch26_ibrt_ins_data_t3[] =
+ {
+-    0x68134a02,
+-    0x4300f043,
++    0x68134a05,
++    0x2380f043,
++    0xf5a26013,
++    0x68137206,
++    0x0301f043,
+     0xbd386013,
+     0xd0220400,
+ };
+@@ -771,10 +789,11 @@ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch26 =
+     BTDRV_PATCH_ACT,
+     sizeof(bes2300p_patch26_ibrt_ins_data_t3),
+     0x00048200,
+-    0xba98f1bf,
+-    0xc0007734,
++    0xba8ef1bf,
++    0xc0007720,
+     (uint8_t *)bes2300p_patch26_ibrt_ins_data_t3
+-};//lld_evt_rx_isr
++};//enable hw spiin BLE lld_evt_rx_isr
++
+ #elif 0
+ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch26 =
+ {
+@@ -1529,16 +1548,32 @@ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch45 =
+     (uint8_t *)bes2300p_patch45_ibrt_ins_data_t3
+ };//dbg state
+ 
++const uint32_t bes2300p_patch46_ibrt_ins_data_t3[] =
++{
++    0x4b06b508,
++    0x02007a98,
++    0x0001f040,
++    0xfb70f5fa,
++    0xbf183801,
++    0x30fff04f,
++    0xbf00bd08,
++    0xc00064d0,
++    0xffeef7ff,
++    0x781bb918,
++    0xf6342b02,
++    0xbd08bc89,
++};
++
+ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch46 =
+ {
+     46,
+     BTDRV_PATCH_ACT,
+-    0,
+-    0x0003bdc0,
+-    0xbf00e010,
+-    0,
+-    NULL,
+-};//IBRT mode start sco donot set afh
++    sizeof(bes2300p_patch46_ibrt_ins_data_t3),
++    0x0003b60c,
++    0xbb70f1cb,
++    0xc0006cd0,
++    (uint8_t *)bes2300p_patch46_ibrt_ins_data_t3
++};
+ 
+ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch47 =
+ {
+@@ -1718,11 +1753,11 @@ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch52 =
+ 
+ const uint32_t bes2300p_patch53_ibrt_ins_data_t3[] =
+ {
+-    0x681b4b03,
+-    0xd1012b01,
+-    0xfb06f632,
+-    0x81f0e8bd,
+-    0xc0007434,
++    0x681b4b03,/*76fc*/
++    0xd1012b01,/*7700*/
++    0xfb06f632,/*7704*/
++    0x81f0e8bd,/*7708*/
++    0xc0007434,/*770c*/
+ };
+ 
+ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch53 =
+@@ -1769,11 +1804,14 @@ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch55 =
+ #else
+ const uint32_t bes2300p_patch55_ibrt_ins_data_t3[] =
+ {
+-    0x68134a03,
+-    0x4300f023,
++    0x68134a06,
++    0x2380f023,
++    0xf5a26013,
++    0x68137206,
++    0x0301f023,
+     0xbf006013,
+-    0xbe07f63e,
+-    0xd0220400,
++    0xbdaff63e,
++    0xd0220400,/*77dc*/
+ };
+ 
+ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch55 =
+@@ -1782,11 +1820,12 @@ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch55 =
+     BTDRV_PATCH_ACT,
+     sizeof(bes2300p_patch55_ibrt_ins_data_t3),
+     0x00046330,
+-    0xb9f4f1c1,
+-    0xc000771c,
++    0xba46f1c1,
++    0xc00077c0,
+     (uint8_t *)bes2300p_patch55_ibrt_ins_data_t3
+-};//disable hw spi 0 in BLE push
++};//disable hw spi in BLE push
+ #endif
++
+ /////2300p t3 ibrt patch (chip id =2)
+ static const uint32_t best2300p_t3_ibrt_ins_patch_config[] =
+ {
+diff --git a/platform/drivers/bt/best2300p/bt_drv_reg_op.cpp b/platform/drivers/bt/best2300p/bt_drv_reg_op.cpp
+index 959a93f728..7ea92fc344 100644
+--- a/platform/drivers/bt/best2300p/bt_drv_reg_op.cpp
++++ b/platform/drivers/bt/best2300p/bt_drv_reg_op.cpp
+@@ -766,7 +766,7 @@ uint8_t bt_drv_reg_op_force_get_lc_state(uint16_t conhdl)
+ {
+     if(lc_state_addr != 0)
+     {
+-        BT_DRV_TRACE(1,"BT_REG_OP: read LC_STATE=0x%x",*(uint32_t *)lc_state_addr);
++        //BT_DRV_TRACE(1,"BT_REG_OP: read LC_STATE=0x%x",*(uint32_t *)lc_state_addr);
+         uint8_t idx = btdrv_conhdl_to_linkid(conhdl);
+ 
+         if (btdrv_is_link_index_valid(idx))
+diff --git a/platform/drivers/bt/best2300p/bt_drv_rfconfig.c b/platform/drivers/bt/best2300p/bt_drv_rfconfig.c
+index 74c93b0cfa..853d1c0067 100644
+--- a/platform/drivers/bt/best2300p/bt_drv_rfconfig.c
++++ b/platform/drivers/bt/best2300p/bt_drv_rfconfig.c
+@@ -142,7 +142,7 @@ const uint16_t rf_init_tbl_1[][3] =
+     {0x97,0x2523,0},//update by  luobin 2019.0523
+     {0x98,0x1324,0},//update by  walker 2019.01.14, modify for yield
+     {0x9a,0x4470,0},//div2 rc
+-    {0x9b,0xfd42,0},//update by  walker 2018.10.24
++    {0x9b,0xfd52,0},//update by  walker 2018.10.24
+     {0x9c,0x180f,0},/////////luobin
+     {0xa3,0x0789,0},
+     {0xb0,0x0000,0},
+diff --git a/platform/drivers/bt/bt_drv_reg_op.h b/platform/drivers/bt/bt_drv_reg_op.h
+index 2778eb0c42..86c569e08e 100644
+--- a/platform/drivers/bt/bt_drv_reg_op.h
++++ b/platform/drivers/bt/bt_drv_reg_op.h
+@@ -326,6 +326,8 @@ void bt_drv_reg_op_hw_spi_en_setf(int elt_idx, uint8_t hwspien);
+ void bt_drv_enhance_fa_mode(bool enable);
+ void bt_drv_reg_op_set_rand_seed(uint32_t seed);
+ void bt_drv_reg_op_swagc_mode_set(uint8_t mode);
++void bt_drv_reg_op_set_max_pwr_rcv(uint16_t connHandle);
++
+ #ifdef __cplusplus
+ }
+ #endif
+-- 
+2.11.0.windows.1
+

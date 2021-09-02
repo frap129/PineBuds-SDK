@@ -1,0 +1,62 @@
+From 09be9919db914dfefcb07f71018ded0c04935590 Mon Sep 17 00:00:00 2001
+From: jietengxie <jietengxie@bestechnic.com>
+Date: Fri, 14 Aug 2020 17:08:43 +0800
+Subject: [PATCH 3/3] sync:IBRT:ignore LC_WAIT_PWR_CTRL_RES(0x5d) sm
+
+---
+ platform/drivers/bt/best2300p/bt_drv_patch.c | 20 ++++++++++++++------
+ services/ibrt_core/src/app_tws_ibrt.cpp      |  3 ++-
+ 2 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/platform/drivers/bt/best2300p/bt_drv_patch.c b/platform/drivers/bt/best2300p/bt_drv_patch.c
+index f5d141e8f0..0140ffc8cb 100644
+--- a/platform/drivers/bt/best2300p/bt_drv_patch.c
++++ b/platform/drivers/bt/best2300p/bt_drv_patch.c
+@@ -302,16 +302,24 @@ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch7 =
+     (uint8_t *)bes2300p_patch7_ibrt_ins_data_t3
+ };//lm_page_scan_end_ind free msg
+ 
++const uint32_t bes2300p_patch8_ibrt_ins_data_t3[] =
++{
++    0xf8862001,
++    0xf8860060,
++    0xbf000061,
++    0xbba3f611,
++};
++
+ const BTDRV_PATCH_STRUCT bes2300p_t3_ibrt_ins_patch8 =
+ {
+     8,
+     BTDRV_PATCH_ACT,
+-    0,
+-    0x00020640,
+-    0xe00dbf00,
+-    0,
+-    NULL,
+-};//detach directly
++    sizeof(bes2300p_patch8_ibrt_ins_data_t3),
++    0x00018f1c,
++    0xbc62f1ee,
++    0xc00077e4,
++    (uint8_t *)bes2300p_patch8_ibrt_ins_data_t3
++};//ignore 0x5d sm
+ 
+ const uint32_t bes2300p_patch9_ibrt_ins_data_t3[] =
+ {
+diff --git a/services/ibrt_core/src/app_tws_ibrt.cpp b/services/ibrt_core/src/app_tws_ibrt.cpp
+index 857eab78d3..dda22afb96 100644
+--- a/services/ibrt_core/src/app_tws_ibrt.cpp
++++ b/services/ibrt_core/src/app_tws_ibrt.cpp
+@@ -2071,7 +2071,8 @@ ibrt_link_type_e app_tws_ibrt_get_link_type_by_addr(bt_bdaddr_t *p_addr)
+ bool app_tws_ibrt_slave_ibrt_link_connected(void)
+ {
+     ibrt_ctrl_t *p_ibrt_ctrl = app_tws_ibrt_get_bt_ctrl_ctx();
+-    if (p_ibrt_ctrl->ibrt_conhandle != INVALID_HANDLE)
++    if (p_ibrt_ctrl->ibrt_conhandle != INVALID_HANDLE &&
++        (p_ibrt_ctrl->ibrt_conhandle != 0))
+     {
+         return true;
+     }
+-- 
+2.11.0.windows.1
+

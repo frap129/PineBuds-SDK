@@ -1,0 +1,89 @@
+From a0c2fc1b0251f33baae380c937faf36c0b472baf Mon Sep 17 00:00:00 2001
+From: "linyin@bestechnic.com" <linyin@bestechnic.com>
+Date: Sat, 1 Aug 2020 20:41:17 +0800
+Subject: [PATCH 1/2] anc spp add switch for optimize anc spp tool memory.
+
+---
+ config/common.mk                       |  5 +++++
+ services/anc_spp_tool/Makefile         |  4 ++++
+ services/anc_spp_tool/anc_parse_data.c | 16 ++++++++++++++--
+ 3 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/config/common.mk b/config/common.mk
+index 6c316df755..48d81c0c5d 100644
+--- a/config/common.mk
++++ b/config/common.mk
+@@ -2541,3 +2541,8 @@ export TOTA ?= 0
+ ifeq ($(TOTA),1)
+ KBUILD_CPPFLAGS += -DTOTA
+ endif
++
++export OPTM_ANC_SPP_MEM ?= 1
++ifeq ($(OPTM_ANC_SPP_MEM),1)
++KBUILD_CPPFLAGS += -D__OPTM_ANC_SPP_MEM__
++endif
+\ No newline at end of file
+diff --git a/services/anc_spp_tool/Makefile b/services/anc_spp_tool/Makefile
+index 2c1a0f9043..73d850af77 100644
+--- a/services/anc_spp_tool/Makefile
++++ b/services/anc_spp_tool/Makefile
+@@ -8,6 +8,10 @@ src_obj := $(obj_c:.c=.o) $(obj_s:.S=.o) $(obj_cpp:.cpp=.o)
+ 
+ ANC_TEST_LIB_NAME := libanc_spp_tool
+ 
++ifeq ($(OPTM_ANC_SPP_MEM),1)
++ANC_TEST_LIB_NAME := $(ANC_TEST_LIB_NAME)_optmem
++endif
++
+ $(ANC_TEST_LIB_NAME)-y := $(src_obj)
+ 
+ obj-y += $(ANC_TEST_LIB_NAME).a
+diff --git a/services/anc_spp_tool/anc_parse_data.c b/services/anc_spp_tool/anc_parse_data.c
+index 6da1a00392..44ef32651f 100644
+--- a/services/anc_spp_tool/anc_parse_data.c
++++ b/services/anc_spp_tool/anc_parse_data.c
+@@ -71,8 +71,12 @@ static unsigned int last_sector_len;
+ static unsigned int cur_sector_seq;
+ 
+ /* databuf is a two-dimensional array, size: SLIDE_WIN_NUM*ANC_PARSE_DATA_BUFF_SIZE */
++#ifdef __OPTM_ANC_SPP_MEM__
+ static uint8_t *data_buf[SLIDE_WIN_NUM];
+ static bool anc_data_buff_inited_flag = false;
++#else
++static unsigned char BURN_BUFFER_LOC data_buf[SLIDE_WIN_NUM][(8 * 1024 + BURN_DATA_MSG_OVERHEAD + 63) / 64 * 64];
++#endif
+ 
+ static enum DATA_BUF_STATE data_buf_state[SLIDE_WIN_NUM];
+ static enum ERR_CODE data_buf_errcode[SLIDE_WIN_NUM];
+@@ -94,6 +98,7 @@ const unsigned int default_send_timeout = MS_TO_TICKS(500);
+ 
+ void anc_data_buff_init(void)
+ {
++#ifdef __OPTM_ANC_SPP_MEM__
+     if (false == anc_data_buff_inited_flag)
+     {
+         syspool_init();
+@@ -103,11 +108,18 @@ void anc_data_buff_init(void)
+         }
+         anc_data_buff_inited_flag = true;
+     }
++#else
++    return;
++#endif
+ }
+ void anc_data_buff_deinit(void)
+ {
+-    anc_data_buff_inited_flag = false;
+-    memset(data_buf, 0, sizeof(data_buf));
++#ifdef __OPTM_ANC_SPP_MEM__
++     anc_data_buff_inited_flag = false;
++     memset(data_buf, 0, sizeof(data_buf));
++#else
++    return;
++#endif
+ }
+ 
+ int debug_read_enabled(void)
+-- 
+2.11.0.windows.1
+

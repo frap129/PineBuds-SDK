@@ -1,0 +1,43 @@
+From ca2e4194844164c787be01b2e0c9783fbc52a2de Mon Sep 17 00:00:00 2001
+From: "linyin@bestechnic.com" <linyin@bestechnic.com>
+Date: Fri, 7 Aug 2020 12:18:26 +0800
+Subject: [PATCH 2/2] wireless debug anc:load anc default coef before preview
+
+---
+ services/anc_spp_tool/anc_prod_test.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/services/anc_spp_tool/anc_prod_test.c b/services/anc_spp_tool/anc_prod_test.c
+index 9d023280ad..c889b33995 100644
+--- a/services/anc_spp_tool/anc_prod_test.c
++++ b/services/anc_spp_tool/anc_prod_test.c
+@@ -159,10 +159,11 @@ static void prod_test_anc_open_internal(void)
+         // LOG_DEBUG(2,"==============================================func %s,ln %d========================================",__FUNCTION__,__LINE__);
+         af_anc_open(ANC_FEEDFORWARD, play_rate, capture_rate, NULL);
+         anc_open(ANC_FEEDFORWARD);
+-        anc_set_gain(512,512,ANC_FEEDFORWARD);
++        anc_select_coef(play_rate, 0, ANC_FEEDFORWARD, ANC_GAIN_DELAY);
++        anc_set_gain(512, 512, ANC_FEEDFORWARD);
+ 
+         // LOG_DEBUG(2,"============================func %s, pcsuppt_anc_type 0x%x=========================",__FUNCTION__, pcsuppt_anc_type);
+-        // anc_select_coef(play_rate,cur_coef_index,ANC_FEEDFORWARD,ANC_GAIN_DELAY);
++        //anc_select_coef(play_rate,cur_coef_index,ANC_FEEDFORWARD,ANC_GAIN_DELAY);
+     }
+ 
+     if(pcsuppt_anc_type & ANC_FEEDBACK)
+@@ -170,8 +171,10 @@ static void prod_test_anc_open_internal(void)
+         // LOG_DEBUG(2,"==============================================func %s,ln %d========================================",__FUNCTION__,__LINE__);
+         af_anc_open(ANC_FEEDBACK, play_rate, capture_rate, NULL);
+         anc_open(ANC_FEEDBACK);
+-        anc_set_gain(512,512,ANC_FEEDBACK);
+-        // anc_select_coef(play_rate,cur_coef_index,ANC_FEEDBACK,ANC_GAIN_DELAY);
++        anc_select_coef(play_rate, 0, ANC_FEEDBACK, ANC_GAIN_DELAY);
++        anc_set_gain(512, 512, ANC_FEEDBACK);
++        
++        //anc_select_coef(play_rate,cur_coef_index,ANC_FEEDBACK,ANC_GAIN_DELAY);
+     }
+ }
+ 
+-- 
+2.11.0.windows.1
+
