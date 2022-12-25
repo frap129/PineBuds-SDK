@@ -1,5 +1,4 @@
 # PineBuds Open Source SDK
-SDK from the Pine64 Wiki with Ralim's Docker build added (but it doesnt work, read on)
 
 ### Notable changes from the default SDK:
 - Fixed pairing
